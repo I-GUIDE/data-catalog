@@ -1,0 +1,87 @@
+version: '3'
+
+volumes:
+  h2_data:
+    driver: local
+  mongo_data:
+    driver: local
+
+services:
+
+  #dspfront:
+  #  image: dspfront
+  #  container_name: dsp_dev_dspfront
+  #  volumes:
+  #    - ./../.env:/dspfront/.env
+  #  ports:
+  #    - 5001:5001
+  #  restart: unless-stopped
+
+  nginx:
+    image: nginx:1.17.10
+    container_name: iguide_nginx
+    volumes:
+      - ./nginx/nginx-local.conf:/etc/nginx/nginx.conf
+      - ./nginx/config:/etc/ssl
+    ports:
+      - 443:443
+    depends_on:
+      - api
+
+  api:
+    image: iguide_api
+    container_name: iguide_api
+    volumes:
+      - ./submissions:/app/submissions
+      #- ./tests:/tests
+    #entrypoint: bash dev-entrypoint.sh
+    build:
+      context: ./
+      dockerfile: Dockerfile
+    ports:
+      - 5002:5002
+    restart: on-failure
+    depends_on:
+      - mongodb
+      - keycloak
+
+  mongodb:
+    image: mongo:5.0
+    ports:
+      - '27017:27017'
+    volumes:
+      - mongo_data:/data/db
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=AzureDiamond
+      - MONGO_INITDB_ROOT_PASSWORD=hunter2
+  
+  postgres:
+    image: postgres
+    environment:
+      POSTGRES_DB: testkeycloakdb
+      POSTGRES_USER: testkeycloakuser
+      POSTGRES_PASSWORD: testkeycloakpassword
+    restart:
+      always
+  
+  keycloak:
+    # build from cuahsi/keycloak
+    image: docker.io/library/keycloak-keycloak
+    volumes:
+      - h2_data:/opt/keycloak/data
+    environment:
+      DB_VENDOR: POSTGRES
+      DB_ADDR: postgres
+      DB_DATABASE: testkeycloakdb
+      DB_USER: testkeycloakuser
+      DB_SCHEMA: public
+      DB_PASSWORD: testkeycloakpassword
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+      KC_HTTP_RELATIVE_PATH: /auth
+      KC_FEATURES: preview,admin2
+    ports:
+      - 8080:8080
+    depends_on:
+      - postgres
+    command: [ "/opt/bitnami/keycloak/bin/kc.sh", "start-dev", "--proxy=passthrough", "--hostname-url=https://localhost/auth", "--hostname-admin-url=https://localhost/auth"] 

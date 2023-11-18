@@ -1,0 +1,11 @@
+fastapi
+beanie
+motor
+pytest
+uvicorn
+itsdangerous
+python-jose
+python-jose[cryptography]
+requests
+cachetools
+pyjwt
